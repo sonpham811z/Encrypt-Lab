@@ -246,28 +246,58 @@ function renderAlgorithmView(algo) {
   }
 
   // ------------------------------------------
-  // NORMAL MODE (AES / DES)
+  // NORMAL MODE (AES / DES / OTHERS WITH MODE)
   // ------------------------------------------
   let modeSelect = ""
 
   if (algo.id === "aes" || algo.id === "des") {
+    const isAES = algo.id === "aes"
+
     modeSelect = `
       <div class="aes-des-settings">
-        <div class="form-group">
-          <label class="form-label">Mode:</label>
-          <select class="form-select" id="modeSelect">
-            <option value="ecb">ECB (Electronic Codebook)</option>
-            <option value="cbc">CBC (Cipher Block Chaining)</option>
+        <div class="aesdes-mode-card">
+          <div class="aesdes-mode-header">
+            <div class="aesdes-mode-title">Block Cipher Mode</div>
+            <div class="aesdes-mode-subtitle">
+              ${isAES ? "AES" : "DES"} • ${
+      isAES ? "128/192/256-bit keys, 128-bit blocks" : "56-bit key, 64-bit blocks"
+    }
+            </div>
+          </div>
+
+          <div class="aesdes-mode-toggle" id="modeToggle">
+            <button class="mode-pill active" data-mode="ecb">
+              <span class="mode-pill-label">ECB</span>
+              <span class="mode-pill-desc">Simple, no IV (not recommended for real data)</span>
+            </button>
+            <button class="mode-pill" data-mode="cbc">
+              <span class="mode-pill-label">CBC</span>
+              <span class="mode-pill-desc">Chained blocks, requires IV</span>
+            </button>
+          </div>
+
+          <!-- Hidden select giữ logic cũ -->
+          <select class="form-select aesdes-mode-select" id="modeSelect" hidden>
+            <option value="ecb" selected>ECB</option>
+            <option value="cbc">CBC</option>
           </select>
+
+
         </div>
 
-        <div class="form-group" id="ivGroup" style="display:none;">
-          <label class="form-label">Initialization Vector (IV):</label>
-          <input type="text" class="form-input" id="ivInput"
-                 placeholder="Enter IV: AES = 16 bytes, DES = 8 bytes (ASCII or HEX)">
-          <small class="form-help">
-            CBC mode requires IV. ECB mode ignores IV.
-          </small>
+        <div class="form-group iv-group" id="ivGroup" style="display:none;">
+          <label class="form-label">Initialization Vector (IV)</label>
+          <input
+            type="text"
+            class="form-input"
+            id="ivInput"
+            placeholder="${
+              isAES
+                ? "AES: 16 bytes (128-bit) – ASCII hoặc HEX"
+                : "DES: 8 bytes (64-bit) – ASCII hoặc HEX"
+            }"
+          >
+
         </div>
       </div>
     `
@@ -333,7 +363,7 @@ function renderAlgorithmView(algo) {
 
 // ------------------------------------------------------------------
 // LISTENER FOR VIGENERE
-// ------------------------------------------------------------------
+// ------------------------------------------------------------------)
 function setupVigenereFileListeners(algo) {
   const fileInput = document.getElementById("fileInput")
   const decryptFileBtn = document.getElementById("decryptFileBtn")
@@ -499,10 +529,9 @@ function setupCaesarBruteForceListeners(algo) {
       )
 
       if (algo.id === "mono_substitution") {
-        const worker = new Worker(
-          "./js/algorithms/mono/mono_worker.js",
-          { type: "module" }
-        )
+        const worker = new Worker("./js/algorithms/mono/mono_worker.js", {
+          type: "module",
+        })
 
         worker.onmessage = (ev) => {
           const data = ev.data
@@ -624,6 +653,35 @@ function setupAlgorithmListeners(algo) {
     }
     toggleIv()
     modeSelect.addEventListener("change", toggleIv)
+
+    // Custom toggle pill UI cho AES/DES
+    const modeToggle = document.getElementById("modeToggle")
+    if (modeToggle) {
+      const initMode = modeSelect.value || "ecb"
+      modeToggle
+        .querySelectorAll(".mode-pill")
+        .forEach((btn) => {
+          btn.classList.toggle("active", btn.dataset.mode === initMode)
+        })
+
+      modeToggle.addEventListener("click", (e) => {
+        const btn = e.target.closest(".mode-pill")
+        if (!btn) return
+
+        const selectedMode = btn.dataset.mode
+        if (!selectedMode) return
+
+        // Toggle UI
+        modeToggle
+          .querySelectorAll(".mode-pill")
+          .forEach((b) => b.classList.remove("active"))
+        btn.classList.add("active")
+
+        // Cập nhật hidden select + trigger change để toggle IV
+        modeSelect.value = selectedMode
+        modeSelect.dispatchEvent(new Event("change"))
+      })
+    }
   }
 
   encryptBtn.addEventListener("click", () => {
@@ -640,7 +698,11 @@ function setupAlgorithmListeners(algo) {
       return
     }
 
-    if ((algo.id === "aes" || algo.id === "des") && mode === "cbc" && (!iv || iv.length === 0)) {
+    if (
+      (algo.id === "aes" || algo.id === "des") &&
+      mode === "cbc" &&
+      (!iv || iv.length === 0)
+    ) {
       logger.error("CBC mode requires an IV")
       return
     }
@@ -677,7 +739,11 @@ function setupAlgorithmListeners(algo) {
       return
     }
 
-    if ((algo.id === "aes" || algo.id === "des") && mode === "cbc" && (!iv || iv.length === 0)) {
+    if (
+      (algo.id === "aes" || algo.id === "des") &&
+      mode === "cbc" &&
+      (!iv || iv.length === 0)
+    ) {
       logger.error("CBC mode requires an IV")
       return
     }
