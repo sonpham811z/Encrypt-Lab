@@ -39,7 +39,7 @@ const algorithms = [
   {
     id: "aes",
     name: "AES (Advanced Encryption Standard)",
-    description: "128/192/256-bit symmetric encryption",
+    description: "128 bit symmetric encryption",
     module: aes,
     requiresMode: true,
   },
