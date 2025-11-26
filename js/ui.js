@@ -685,86 +685,76 @@ function setupAlgorithmListeners(algo) {
   }
 
   encryptBtn.addEventListener("click", () => {
-    const input = inputText.value
-    const key = keyInput.value
-    const mode = modeSelect ? modeSelect.value : null
-    const iv =
-      (algo.id === "aes" || algo.id === "des") && mode === "cbc" && ivInput
-        ? ivInput.value.trim()
-        : null
+  const input = inputText.value.trim();
+  const key = keyInput.value.trim();
+  const mode = modeSelect ? modeSelect.value : null;
 
-    if (!input || !key) {
-      logger.error("Please provide both input text and key")
-      return
-    }
+  // Chỉ lấy IV nếu người dùng nhập, còn không thì để null → backend sẽ tự sinh khi encrypt CBC
+  const iv = ivInput ? ivInput.value.trim() : null;
 
-    if (
-      (algo.id === "aes" || algo.id === "des") &&
-      mode === "cbc" &&
-      (!iv || iv.length === 0)
-    ) {
-      logger.error("CBC mode requires an IV")
-      return
-    }
+  if (!input || !key) {
+    logger.error("Please provide both input text and key");
+    return;
+  }
 
-    try {
-      let result
-      if (algo.requiresMode) {
-        if (algo.id === "aes" || algo.id === "des") {
-          result = algo.module.encrypt(input, key, mode, iv)
-        } else {
-          result = algo.module.encrypt(input, key, mode)
-        }
+  try {
+    let result;
+    if (algo.requiresMode) {
+      if (algo.id === "aes" || algo.id === "des") {
+        result = algo.module.encrypt(input, key, mode, iv || undefined); 
       } else {
-        result = algo.module.encrypt(input, key)
+        result = algo.module.encrypt(input, key, mode);
       }
-      outputText.value = result
-      logger.success(`Encryption successful using ${algo.name}`)
-    } catch (error) {
-      logger.error(error.message)
-    }
-  })
-
-  decryptBtn.addEventListener("click", () => {
-    const input = inputText.value
-    const key = keyInput.value
-    const mode = modeSelect ? modeSelect.value : null
-    const iv =
-      (algo.id === "aes" || algo.id === "des") && mode === "cbc" && ivInput
-        ? ivInput.value.trim()
-        : null
-
-    if (!input || !key) {
-      logger.error("Please provide both input text and key")
-      return
+    } else {
+      result = algo.module.encrypt(input, key);
     }
 
-    if (
-      (algo.id === "aes" || algo.id === "des") &&
-      mode === "cbc" &&
-      (!iv || iv.length === 0)
-    ) {
-      logger.error("CBC mode requires an IV")
-      return
-    }
+    outputText.value = result;
 
-    try {
-      let result
-      if (algo.requiresMode) {
-        if (algo.id === "aes" || algo.id === "des") {
-          result = algo.module.decrypt(input, key, mode, iv)
-        } else {
-          result = algo.module.decrypt(input, key, mode)
-        }
+    if (mode === "cbc" && (!iv || iv.length === 0)) {
+      logger.success(`Encryption successful using ${algo.name} (CBC with auto-generated IV)`);
+    } else {
+      logger.success(`Encryption successful using ${algo.name}`);
+    }
+  } catch (error) {
+    logger.error(error.message);
+  }
+});
+
+decryptBtn.addEventListener("click", () => {
+  const input = inputText.value.trim();
+  const key = keyInput.value.trim();
+  const mode = modeSelect ? modeSelect.value : null;
+  const iv = ivInput ? ivInput.value.trim() : null;
+
+  if (!input || !key) {
+    logger.error("Please provide both input text and key");
+    return;
+  }
+
+  if ((algo.id === "aes" || algo.id === "des") && mode === "cbc" && (!iv || iv.length === 0)) {
+    logger.error("IV is required for CBC decryption");
+    return;
+  }
+
+  try {
+    let result;
+    if (algo.requiresMode) {
+      if (algo.id === "aes" || algo.id === "des") {
+        result = algo.module.decrypt(input, key, mode, iv);
       } else {
-        result = algo.module.decrypt(input, key)
+        result = algo.module.decrypt(input, key, mode);
       }
-      outputText.value = result
-      logger.success(`Decryption successful using ${algo.name}`)
-    } catch (error) {
-      logger.error(error.message)
+    } else {
+      result = algo.module.decrypt(input, key);
     }
-  })
+
+    outputText.value = result;
+    logger.success(`Decryption successful using ${algo.name}`);
+  } catch (error) {
+    logger.error(error.message);
+  }
+});
 
   copyBtn.addEventListener("click", () => {
     const text = outputText.value

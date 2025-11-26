@@ -4,6 +4,12 @@ const textDecoder = new TextDecoder();
 const stringToBytes = (str) => textEncoder.encode(str);
 const bytesToString = (bytes) => textDecoder.decode(bytes);
 
+const randomBytes = (len) => {
+  const arr = new Uint8Array(len);
+  crypto.getRandomValues(arr);
+  return arr;
+};
+
 const hexToBytes = (hex) => {
   if (hex.length % 2 !== 0) throw new Error("Invalid hex");
   const out = new Uint8Array(hex.length / 2);
@@ -224,14 +230,23 @@ const decryptECB = (cipherHex, key) => {
   return bytesToString(unpadPKCS7(out));
 };
 
+
 const encryptCBC = (plaintext, key, iv) => {
   const keyBytes = normalizeKey(key);
-  const ivBytes = normalizeIV(iv);
   const subkeys = generateSubkeys(keyBytes);
+
+  let ivBytes;
+  let prefix = "";
+
+  if (!iv || iv.trim() === "") {
+    ivBytes = randomBytes(8);  // Tự sinh IV 8 byte cho DES
+    prefix = bytesToHex(ivBytes);
+  } else {
+    ivBytes = normalizeIV(iv); // Người dùng nhập → dùng cái đó
+  }
 
   const pt = padPKCS7(stringToBytes(plaintext));
   const out = new Uint8Array(pt.length);
-
   let prev = ivBytes;
 
   for (let i = 0; i < pt.length; i += 8) {
@@ -240,10 +255,13 @@ const encryptCBC = (plaintext, key, iv) => {
     out.set(enc, i);
     prev = enc;
   }
-  return bytesToHex(out);
-};
+  return prefix + bytesToHex(out);
+}
 
 const decryptCBC = (cipherHex, key, iv) => {
+  if (!iv || iv.trim() === "") {
+    throw new Error("IV is required for DES CBC decryption");
+  }
   const keyBytes = normalizeKey(key);
   const ivBytes = normalizeIV(iv);
   const subkeys = generateSubkeys(keyBytes);
